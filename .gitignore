@@ -1,6 +1,7 @@
-config.json
 venv
 venv/**
 __pycache__
 *.pyc
-chatapp.log
+mcp-config.json
+scraeper-config.json
+lancedb-wikijs/

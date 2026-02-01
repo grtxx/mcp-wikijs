@@ -4,14 +4,10 @@ from chromadb.utils import embedding_functions # type: ignore
 from mcp.server.fastmcp import FastMCP # type: ignore
 import uvicorn # type: ignore
 import requests # type: ignore
+from configmanager import configmanager as configManager
 
-# --- KONFIGURÁCIÓ ---
-# Itt add meg a folyamatosan futó ChromaDB adatait
-CHROMA_HOST = "localhost"  # A ChromaDB szerver IP címe
-CHROMA_PORT = 7701           # A specifikus port
-COLLECTION_NAME = "wiki_pages"
-WIKI_URL = "https://wiki.umbrella.tv/graphql"  # A te Wiki.js címed
-WIKI_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGkiOjEsImdycCI6MSwiaWF0IjoxNzY4NzQ3NDI3LCJleHAiOjE4NjM0MjAyMjcsImF1ZCI6InVybjp3aWtpLmpzIiwiaXNzIjoidXJuOndpa2kuanMifQ.K_FTVoZRSThtO4eoXjXUzFGM7QJXO_JgVwLeRcpZgNI7IvaDHEiCmz2yWmHMSYtxO4Y2KNcj1XqOL1CtLS7X3HgEOQEBprQhvYuZMqGsIoUrGIcsMJ3FL4X0pioISnlYr6vnt22_FVt9lmCPNW2Pb4UfYIyYSWcBhYpT20iVsWlXhcjv33M_UFYdsfVM3eFe8i475fK6rVFMLq5gWoNPP2BPuao6J5lExJ74qibXcKzFPoCVOw6fOzgNXo8ONyVR2UFrX0ZnJfg4OLoWiM-7WpjNXDz1jgo1yUqLFO06XklRkcZQTilutLjxa3aTmYr3ukxp7W_cD53SsmoHYF28hg"
+
+cfg = configManager( "mcp-config.json" )
 
 def create_app():
     mcp = FastMCP(name="WikiMultilingualSearch")
@@ -25,29 +21,31 @@ def create_app():
     # 2. Csatlakozás a távoli ChromaDB-hez
     try:
         db_client = chromadb.HttpClient(
-            host=CHROMA_HOST,
-            port=CHROMA_PORT
+            host=cfg.get( "chroma_host" ),
+            port=cfg.get( "chroma_port" )
         )
         collection = db_client.get_collection(
-            name=COLLECTION_NAME, 
+            name=cfg.get( "collection_name" ), 
             embedding_function=ef
         )
-        print(f"Sikeresen csatlakozva a ChromaDB-hez: {CHROMA_HOST}:{CHROMA_PORT}")
+        print(f"Sikeresen csatlakozva a ChromaDB-hez: {cfg.get('chroma_host')}:{cfg.get('chroma_port')}")
     except Exception as e:
         print(f"HIBA: Nem sikerült kapcsolódni a ChromaDB-hez: {e}")
         # Itt érdemes kezelni, ha még nem létezik a collection
         collection = None
 
     @mcp.tool()
-    def search_wiki(query: str, limit: int  = 4) -> str:
+    def search_wiki(query: str, limit: int  = 12) -> str:
         """
-        Semantic search in Company Wiki knowledge base. Treat this as your primary source 
-        of information about process documents, policies, tools, workflows, employee role 
-        descriptions, subscriptions and all the other possible internal documentation.
-        If you find a relevant article, give the user detailed information from it. 
-        Put your search string into the 'query' parameter. Always show the URL of the used pages.
-        Format all the URL-s a clickable links.
-        You can start up to 4 searches or page downloads to find the most relevant answers.
+        Search in Company Wiki. Use this as your primary source of information about 
+        processes, workflows, policies, tools, employee role descriptions, 
+        subscriptions and all the other possible internal documentation. This function 
+        will return full article for the most relevant result and snippets from 
+        other relevant articles. If you got a snipped and you need more information,
+        use the 'get_wiki_page' function with the page ID to retrieve the full content
+        of that article.
+        Put your search string into the 'query' parameter. Always show the URL of the used pages as clicable links.
+        You can start up to 6 searches or page downloads to find the most relevant answers.
         """
         if collection is None:
             return "Error: Connection to the vector database has been lost."
@@ -66,9 +64,14 @@ def create_app():
         for i in range(len(results['documents'][0])):
             doc = results['documents'][0][i]
             meta = results['metadatas'][0][i]
-            
-            # A "passage: " prefixet (ha bent maradt az indexelésnél) itt levághatjuk a szebb megjelenésért
-            clean_doc = doc.replace("passage: ", "", 1)
+
+            if ( i == 0 ):
+                print( f"Returning page: {meta.get('url', '' )}" )
+                clean_doc = get_wiki_page( page_id=int(meta.get('id', '0')) )
+            else:
+                print( f"Returning snippet from: {meta.get('url', '' )}" )
+                clean_doc = doc.replace("passage: ", "", 1)
+                print( f"\t{clean_doc[:60]}..." )
             
             formatted_results.append(
                 f"--- SOURCE PAGE: {meta.get('title', 'Névtelen')} ---\n"
@@ -78,6 +81,7 @@ def create_app():
                 f"LAST UPDATED: {meta.get('updatedAt', '')}\n"
                 f"RELEVANCE SCORE: {results['distances'][0][i]:.4f}\n"
                 f"CONTENT:\n{clean_doc[:35000]}..."
+                f"RESULT_TYPE: {"WIKI_SNIPPET" if i > 0 else "FULL_ANSWER"}"
             )
 
         return "\n\n" + "\n\n".join(formatted_results)
@@ -98,25 +102,26 @@ def create_app():
               content
               description
               updatedAt
+              path
             }
           }
         }
         """
         try:
             resp = requests.post(
-                WIKI_URL,
+                cfg.get("wiki_url"), # type: ignore
                 json={'query': query, 'variables': {'id': page_id}},
-                headers={"Authorization": f"Bearer {WIKI_TOKEN}"}
+                headers={"Authorization": f"Bearer {cfg.get('wiki_token')}"}
             )
-            print( f'data: {resp.json()}' )
             data = resp.json()['data']['pages']['single']
+            print( data.keys() )
             
             if not data:
                 return f"Hiba: A {page_id} azonosítójú oldal nem található."
 
             return (f"TITLE: {data['title']}\n"
                     f"ID: {page_id}\n"
-                    f"URL: {WIKI_URL}/a/pages/{page_id}\n"
+                    f"URL: {cfg.get('wiki_url').replace('/graphql', '')}/{data['path']}\n"
                     f"LAST UPDATED: {data['updatedAt']}\n"
                     f"PAGE DESCRIPTION: {data['description']}\n"
                     f"CONTENT:\n{data['content']}")
@@ -131,4 +136,5 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
+    
     uvicorn.run(app, host="0.0.0.0", port=10002 )

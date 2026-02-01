@@ -1,0 +1,9 @@
+{
+    "chroma_host": "localhost",
+    "chroma_port": 7701,
+    "collection_name": "wiki_pages",
+    "wiki_url": "https://wiki.umbrella.tv/graphql",
+    "wiki_token": "<wiki-token>",
+
+    "lancedb_datapath": "/opt/LUMENIS/mcp-wikijs/lancedb-wikijs"
+}

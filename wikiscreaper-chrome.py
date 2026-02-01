@@ -1,6 +1,11 @@
+import sys
+import time
 from chromadb.utils import embedding_functions # type: ignore
 import chromadb # type: ignore
 import requests # type: ignore
+from langchain_text_splitters import RecursiveCharacterTextSplitter # type: ignore
+from configmanager import configmanager
+
 
 # --- BEÁLLÍTÁSOK ---
 WIKI_URL = "https://wiki.umbrella.tv/graphql"  # A te Wiki.js címed
@@ -16,12 +21,13 @@ collection = client.get_or_create_collection(
         name="wiki_pages", 
         embedding_function=huggingface_ef)
 
+
 def get_all_pages():
     """Lekéri az összes elérhető oldal listáját (id, path, title)."""
     query = """
     {
       pages {
-        list { id, path, title }
+        list { id, path, title, updatedAt, createdAt }
       }
     }
     """
@@ -29,6 +35,7 @@ def get_all_pages():
                              json={'query': query}, 
                              headers={"Authorization": f"Bearer {WIKI_TOKEN}"})
     return response.json()['data']['pages']['list']
+
 
 def get_page_details(page_id):
     """Lekéri egy konkrét oldal tartalmát."""
@@ -44,30 +51,62 @@ def get_page_details(page_id):
                              headers={"Authorization": f"Bearer {WIKI_TOKEN}"})
     return response.json()['data']['pages']['single']
 
+def chunking(raw_text, splitter, id):
+    texts = splitter.split_text(raw_text)
+    prefixed_chunks = [f"passage: {t}" for t in texts]
+    ids = []
+    cnt = 0
+    for t in texts:
+        ids.append(f"WIKIJS-{id}-{cnt}")
+        cnt += 1
+        if len(t) > 1000:
+            print(f"Figyelem: Egy darab szöveg túl hosszú maradt ({len(t)} karakter) az oldal ID {id} esetén.")            
+    return prefixed_chunks, ids
+
 
 def main():
+    config = configmanager( "screaper-config.json" )
+    lastrun = config.get('lastrun')
+
+    config.set('lastrun', time.strftime( '%Y-%m-%dT%H:%M:%SZ', time.gmtime() ))
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, 
+        chunk_overlap=200,
+        separators=["\n\n", "\n", ". ", " ", ""]
+    )
+
     print("Oldalak listázása...")
     pages = get_all_pages()
     
+    cnt = 0
+    skip = 0
     for p in pages:
         page_id = p['id']
         title = p['title']
         path = p['path']
+
+        if p["updatedAt"] < lastrun:
+            skip += 1
+            print(f"Skip: {title} ({path})...")
+            continue
+        cnt += 1
+        print(f"Loading: {title} ({path})...")
+
         url = f"{WIKI_URL.rstrip('/graphql')}/{path}"
         
-        print(f"Feldolgozás: {title} ({path})...")
         details = get_page_details(int(page_id))
-        content = details['content']
+        content = details['content'].replace('\r\n', '\n').strip()
+        chunks,ids  = chunking(content, splitter, p['id'])
         
-        # Ha túl hosszú a cikk, érdemes lehetne feldarabolni (chunking), 
-        # de kezdésnek egyben is jó lesz a ChromaDB-nek.
         collection.add(
-            documents=[content],
-            metadatas=[ { "title": title, "path": path, "id": page_id, "url": url } ],
-            ids=str(page_id)
+            documents=chunks,
+            metadatas=[ { "title": title, "path": path, "id": page_id, "url": url } ]*len(chunks),
+            ids=ids
         )
 
-    print(f"\nKész! {len(pages)} oldal beindexelve a 'wiki_pages' kollekcióba.")
+    print(f"\nKész! {cnt} oldal beindexelve, {skip} oldal kihagyva.")
+    config.saveConfig()
 
 if __name__ == "__main__":
     main()
