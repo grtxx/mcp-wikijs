@@ -117,12 +117,12 @@ def create_app():
         if not page:
             return f"Error: Page with ID {page_id} not found."
 
-        return (f"### TITLE: {page['title']}\n"
-                f"ID: {page_id}\n"
-                f"URL: {cfg.get('wiki_url').replace('/graphql', '')}/{page['locale']}/{page['path']}\n" # type: ignore
-                f"LAST UPDATED: {page['updatedAt']}\n"
-                f"PAGE DESCRIPTION: {page['description']}\n"
-                f"CONTENT:\n{page['content']}")
+        return "%s%s%s%s%s%s" % ( f"### TITLE: {page['title']}\n"
+            f"ID: {page_id}\n"
+            f"URL: {cfg.get('wiki_url').replace('/graphql', '')}/{page['locale']}/{page['path']}\n" # type: ignore
+            f"LAST UPDATED: {page['updatedAt']}\n"
+            f"PAGE DESCRIPTION: {page['description']}\n"
+            f"CONTENT:\n{page['content']}" )
             
 
     app = mcp.sse_app()
