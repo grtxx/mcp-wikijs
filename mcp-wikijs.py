@@ -14,7 +14,7 @@ cfg = configManager( "mcp-config.json" )
 
 
 def create_app():
-    wiki = WikiJSClient( cfg.get( "wiki_url" ), cfg.get( "wiki_token" ) )
+    wiki = WikiJSClient( cfg.get( "wiki_url" ), cfg.get( "wiki_token" ) ) # type: ignore
 
     mcp = FastMCP(name="WikiHybridSearch")
 
@@ -42,7 +42,7 @@ def create_app():
 
 
     @mcp.tool()
-    def search_wiki(queryhu: str, queryen: str, limit: int  = 5) -> str:
+    def search_wiki(queryhu: str, queryen: str = '', limit: int = 5) -> str:
         """
         Search in Company Wiki using HYBRID search (Semantic + Keyword).
         Returns full article for the top result and snippets for others.
@@ -58,7 +58,15 @@ def create_app():
 
         print(f"Hybrid Search: {queryhu}")
 
-        queries = [ f"query: {queryhu}", f"query: {queryen}" ]
+        queries = []
+        if queryhu != "":
+            queries.append( f"query: {queryhu}" )
+        if queryen != "":
+            queries.append( f"query: {queryen}" )
+        
+        if len(queries) == 0:
+            return "Error: No query provided."
+
         for q in queries:
             print( f" - Sub-query: {q}" )
             results = table.search( q, query_type="hybrid" ) \
@@ -77,11 +85,11 @@ def create_app():
         for i, doc in enumerate(results):
             if i == 0:
                 print(f"Returning full page: {doc.url}")
-                content = wiki.convertToMarkdown(wiki.getPage(doc.page_id))["content"]
+                content = wiki.convertToMarkdown(wiki.getPage(doc.page_id))["content"] # type: ignore
                 res_type = "FULL_ANSWER"
             else:
                 print(f"Returning snippet from: {doc.url}")
-                content = doc.text[:1000] + "..." 
+                content = doc.text[9:1000] + "..." 
                 res_type = "WIKI_SNIPPET"
 
             formatted_results.append(

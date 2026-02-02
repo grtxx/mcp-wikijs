@@ -77,17 +77,17 @@ def main():
         page = wiki.convertToMarkdown( wiki.getPage(int(page_id) ) )
         url = f"{cfg.get('wiki_url').rstrip('/graphql')}/{page['locale']}/{path}" # type: ignore
 
-        chunks = text_splitter.split_text( page['content'] )
+        chunks = text_splitter.split_text( page['content'] ) # type: ignore
         chunkList = []
         if chunks:
             for c in chunks:
-                c = f"### {title}\n{page['description']}\n----- \n\n{c}"
+                c = f"### {title}\n{page['description']}\n----- \n\n{c}" # type: ignore
                 chunkList.append( WikiPage(
                     text = f"passage: {c}",
                     page_id = int(page_id),
-                    title = page['title'],
+                    title = page['title'], # type: ignore
                     url = url,
-                    description = page['description'],
+                    description = page['description'], # type: ignore
                     updatedAt = p['updatedAt']
                 ) )
             table.add( chunkList )
