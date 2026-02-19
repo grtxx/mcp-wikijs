@@ -52,7 +52,8 @@ def create_app():
         Put the query string into the 'queryhu' parameter in Hungarian
         and into the 'queryen' parameter in English.
         Always show the URL of the used pages as clickable links.
-        You can start up to 6 searches or page downloads to find the most relevant answers."""
+        DO NOT search wiki for people's names, contact details or similar information.
+        """
         if table is None:
             return "Error: Local database is not initialized."
 
