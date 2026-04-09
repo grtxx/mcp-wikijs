@@ -1,14 +1,13 @@
-import os
-import sys
 import lancedb  # type: ignore
-import requests # type: ignore
 import uvicorn  # type: ignore
 from lancedb.embeddings import get_registry # type: ignore
 from lancedb.pydantic import LanceModel, Vector # type: ignore
 from mcp.server.fastmcp import FastMCP # type: ignore
 from configmanager import configmanager as configManager
-import subprocess
 from wikijsclient import WikiJSClient
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import ASGIApp, Scope, Receive, Send
 
 cfg = configManager( "mcp-config.json" )
 
@@ -44,15 +43,9 @@ def create_app():
     @mcp.tool()
     def search_wiki(queryhu: str, queryen: str = '', limit: int = 5) -> str:
         """
-        Search in Company Wiki using HYBRID search (Semantic + Keyword).
-        Returns full article for the top result and snippets for others.
-        Use this as your primary source of information about processes, 
-        workflows, policies, tools, employee role descriptions, subscriptions
-        and all the other possible internal documentation.
-        Put the query string into the 'queryhu' parameter in Hungarian
-        and into the 'queryen' parameter in English.
-        Always show the URL of the used pages as clickable links.
-        DO NOT search wiki for people's names, contact details or similar information.
+        Search in Company Wiki. Ask about processes, workflows, policies, 
+        tools, employee role descriptions, subscriptions and all the other
+        possible internal documentation.
         """
         if table is None:
             return "Error: Local database is not initialized."
@@ -124,23 +117,37 @@ def create_app():
             f"LAST UPDATED: {page['updatedAt']}\n"
             f"PAGE DESCRIPTION: {page['description']}\n"
             f"CONTENT:\n{page['content']}" )
+
+    class AllowAllMiddleware:
+        def __init__(self, app: ASGIApp):
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send):
+            if scope["type"] in  ( "http", "websocket" ):
+                headers = []
+                for key, value in scope["headers"]:
+                    if key == b"host":
+                        headers.append((b"host", b"localhost"))
+                    else:
+                        headers.append((key, value))
+                scope["headers"] = headers
             
+            await self.app(scope, receive, send)
 
-    app = mcp.sse_app()
+    mcp.settings.transport_security.enable_dns_rebinding_protection = False
+    app = mcp.streamable_http_app()
 
-
-#    @app.post("/ingest")
-#    async def ingest_wiki_page(page: WikiPage):
-#        """Ezt hívhatja a külső script, hogy adatot toljon be."""
-#        table.add([page])
-#        # FTS index frissítése minden betöltés után (vagy időzítve)
-#        table.create_fts_index("text", replace=True)
-#        return {"status": "ok"}
-
+    app.add_middleware( AllowAllMiddleware )
+    app.add_middleware(
+        CORSMiddleware, 
+        allow_origins=["*"], 
+        allow_methods=["*"], 
+        allow_headers=["*"]
+    )
 
     return app
 
 
 if __name__ == "__main__":
-    app = create_app()
+    app = create_app()        
     uvicorn.run(app, host="0.0.0.0", port=10002 )
