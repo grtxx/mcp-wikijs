@@ -147,4 +147,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()        
-    uvicorn.run(app, host=str(cfg.get( 'listenaddress', '0.0.0.0' )), port=int( cfg.get( 'listenport', 10003 ) ) ) # type: ignore
+    uvicorn.run(app, host=str(cfg.get( 'listenaddress', '0.0.0.0' )), port=int( cfg.get( 'listenport', 10002 ) ) ) # type: ignore

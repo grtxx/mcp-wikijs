@@ -6,13 +6,13 @@ from lancedb.embeddings import get_registry # type: ignore
 from lancedb.pydantic import LanceModel, Vector # type: ignore
 import requests # type: ignore
 from langchain_text_splitters import MarkdownTextSplitter # type: ignore
-from configmanager import configmanager as configManager
+from configmanager import config as cfg
 from typing import Optional
 import subprocess
 from wikijsclient import WikiJSClient
 
 
-cfg = configManager( "mcp-config.json" )
+#cfg = configManager( "config.json" )
 
 db = lancedb.connect( cfg.get( "lancedb_datapath" ) )
 registry = get_registry().get("sentence-transformers")

@@ -3,6 +3,7 @@ venv/**
 __pycache__
 *.pyc
 mcp-config.json
+config.json
 scraeper-config.json
 lancedb-wikijs/
 model-cache/
