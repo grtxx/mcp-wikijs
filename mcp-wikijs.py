@@ -3,13 +3,10 @@ import uvicorn  # type: ignore
 from lancedb.embeddings import get_registry # type: ignore
 from lancedb.pydantic import LanceModel, Vector # type: ignore
 from mcp.server.fastmcp import FastMCP # type: ignore
-from configmanager import configmanager as configManager
+from configmanager import config as cfg
 from wikijsclient import WikiJSClient
 from starlette.middleware.cors import CORSMiddleware
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.types import ASGIApp, Scope, Receive, Send
-
-cfg = configManager( "mcp-config.json" )
 
 
 def create_app():
@@ -17,7 +14,7 @@ def create_app():
 
     mcp = FastMCP(name="WikiHybridSearch")
 
-    db = lancedb.connect( cfg.get( "lancedb_datapath" ) )
+    db = lancedb.connect( cfg.get( "lancedb_datapath" ) ) # type: ignore
     registry = get_registry().get("sentence-transformers")
     #model = registry.create(name="intfloat/multilingual-e5-small", device="cpu")
     model = registry.create(name=cfg.get("embedding_model_name"), device=cfg.get("embedding_model_device"))
@@ -31,7 +28,7 @@ def create_app():
         description: str
         updatedAt: str
 
-    table_name = cfg.get("collection_name")
+    table_name = str(cfg.get("collection_name"))
 
     if table_name in db.list_tables().tables:
         table = db.open_table(table_name)
@@ -134,7 +131,7 @@ def create_app():
             
             await self.app(scope, receive, send)
 
-    mcp.settings.transport_security.enable_dns_rebinding_protection = False
+    mcp.settings.transport_security.enable_dns_rebinding_protection = False # type: ignore
     app = mcp.streamable_http_app()
 
     app.add_middleware( AllowAllMiddleware )
@@ -150,4 +147,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()        
-    uvicorn.run(app, host="0.0.0.0", port=10002 )
+    uvicorn.run(app, host=str(cfg.get( 'listenaddress', '0.0.0.0' )), port=int( cfg.get( 'listenport', 10003 ) ) ) # type: ignore
