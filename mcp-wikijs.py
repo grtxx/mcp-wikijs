@@ -7,7 +7,7 @@ from configmanager import config as cfg
 from wikijsclient import WikiJSClient
 from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Scope, Receive, Send
-
+from middlewares.tokenauth import TokenAuthMiddleware
 
 def create_app():
     wiki = WikiJSClient( cfg.get( "wiki_url" ), cfg.get( "wiki_token" ) ) # type: ignore
@@ -141,6 +141,7 @@ def create_app():
         allow_methods=["*"], 
         allow_headers=["*"]
     )
+    app.add_middleware( TokenAuthMiddleware )
 
     return app
 
