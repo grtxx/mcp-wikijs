@@ -8,44 +8,36 @@ from wikijsclient import WikiJSClient
 from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Scope, Receive, Send
 from middlewares.tokenauth import TokenAuthMiddleware
+import kbvector
+import gdrive
+
+
+def getMarkdown( res ):
+    pass
 
 def create_app():
     wiki = WikiJSClient( cfg.get( "wiki_url" ), cfg.get( "wiki_token" ) ) # type: ignore
 
     mcp = FastMCP(name="WikiHybridSearch")
 
-    db = lancedb.connect( cfg.get( "lancedb_datapath" ) ) # type: ignore
-    registry = get_registry().get("sentence-transformers")
-    #model = registry.create(name="intfloat/multilingual-e5-small", device="cpu")
-    model = registry.create(name=cfg.get("embedding_model_name"), device=cfg.get("embedding_model_device"))
+    VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
+                                        embedding_model_name=cfg.get("embedding_model_name"), 
+                                        embedding_model_device=cfg.get("embedding_model_device"), 
+                                        collection_name=cfg.get("collection_name"), 
+                                        chunk_size=int(cfg.get("chunk_size")), # type: ignore
+                                        chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
 
-    class WikiPage(LanceModel):
-        text: str = model.SourceField() # Ezt indexeli a vektoros kereső
-        vector: Vector(model.ndims()) = model.VectorField() # type: ignore # Automatikus embedding
-        page_id: int
-        title: str
-        url: str
-        description: str
-        updatedAt: str
-
-    table_name = str(cfg.get("collection_name"))
-
-    if table_name in db.list_tables().tables:
-        table = db.open_table(table_name)
-    else:
-        # Ha új, létrehozzuk üresen a sémával
-        table = db.create_table(table_name, schema=WikiPage)
+    Drive = gdrive.GDriveClient(service_account_key=cfg.get("service_account_key"), 
+                                service_account_user=cfg.get("service_account_user") )
 
 
     @mcp.tool()
-    def search_wiki(queryhu: str, queryen: str = '', limit: int = 5) -> str:
+    def search_knowledge_base(queryhu: str, queryen: str = '', limit: int = 5) -> str:
         """
-        Search in Company Wiki. Ask about processes, workflows, policies, 
+        Search in Company knowledge base. Ask about processes, workflows, policies, 
         tools, employee role descriptions, subscriptions and all the other
         possible internal documentation.
         """
-        if table is None:
-            return "Error: Local database is not initialized."
 
         print(f"Hybrid Search: {queryhu}")
 
@@ -60,9 +52,7 @@ def create_app():
 
         for q in queries:
             print( f" - Sub-query: {q}" )
-            results = table.search( q, query_type="hybrid" ) \
-                        .limit(limit) \
-                        .to_pydantic(WikiPage)
+            results = VectorDB.search( q ) # type: ignore
             if results:
                 break;
 
@@ -71,17 +61,21 @@ def create_app():
             return "No relevant information found in the Wiki."
 
 
-        formatted_results = ["## Wiki Search Results\n"]
+        formatted_results = ["## Knowledge base search results\n"]
 
         for i, doc in enumerate(results):
             if i == 0:
                 print(f"Returning full page: {doc.url}")
-                content = wiki.convertToMarkdown(wiki.getPage(doc.page_id))["content"] # type: ignore
+                content = ""
+                if  doc.source == "wikijs" :
+                    content = wiki.convertToMarkdown(wiki.getPage(int(doc.page_id)))["content"] # type: ignore
+                elif doc.source == "googledrive":
+                    content = Drive.get_file_content_by_id( doc.page_id )
                 res_type = "FULL_ANSWER"
             else:
                 print(f"Returning snippet from: {doc.url}")
                 content = doc.text[9:1000] + "..." 
-                res_type = "WIKI_SNIPPET"
+                res_type = "SNIPPET"
 
             formatted_results.append(
                 f"### TITLE: {doc.title}\n"
@@ -96,24 +90,27 @@ def create_app():
 
 
     @mcp.tool()
-    def get_wiki_page(page_id: int) -> str:
+    def get_knowledge_base_page(page_id: str) -> str:
         """
         Retrieves the complete content of a specific Wiki page based on its ID.
         Use this when you want to get deeper knowledge about a document after searching.
         Always cite the source of your information with title and URL.
         Put the page ID into the 'page_id' parameter.
         """
-        page = wiki.convertToMarkdown(wiki.getPage(page_id))
+        if ( page_id.isnumeric() ):
+            page = wiki.convertToMarkdown(wiki.getPage(int(page_id))) 
+        else:
+            page = Drive.get_file_content_by_id(page_id)
 
         if not page:
             return f"Error: Page with ID {page_id} not found."
 
-        return "%s%s%s%s%s%s" % ( f"### TITLE: {page['title']}\n"
+        return "%s%s%s%s%s%s" % ( f"### TITLE: {page['title']}\n" # type: ignore
             f"ID: {page_id}\n"
-            f"URL: {cfg.get('wiki_url').replace('/graphql', '')}/{page['locale']}/{page['path']}\n" # type: ignore
-            f"LAST UPDATED: {page['updatedAt']}\n"
-            f"PAGE DESCRIPTION: {page['description']}\n"
-            f"CONTENT:\n{page['content']}" )
+            f"URL: {page.url}\n" # type: ignore
+            f"LAST UPDATED: {page['updatedAt']}\n" # type: ignore
+            f"PAGE DESCRIPTION: {page['description']}\n" # type: ignore
+            f"CONTENT:\n{page['content']}" ) #  type: ignore
 
     class AllowAllMiddleware:
         def __init__(self, app: ASGIApp):

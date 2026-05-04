@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 
 class configmanager:   
@@ -24,9 +25,18 @@ class configmanager:
 
 
     def get( self, key, default=None ):
+        if ( key == "lastrun" ):
+            try: 
+                with open( os.path.join(os.path.dirname(__file__), os.path.basename( sys.argv[0] ).replace(".py", ".lastrun")), 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            except:
+                return "1900-01-01T00:00:00Z"
         return self.currentConfig.get(key, default)
     
     def set( self, key, value ):
+        if ( key == "lastrun" ):
+            with open( os.path.join(os.path.dirname(__file__), os.path.basename( sys.argv[0] ).replace(".py", ".lastrun")), 'w', encoding='utf-8') as f:
+                f.write( value )
         self.currentConfig[key] = value
         pass
 

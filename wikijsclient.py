@@ -60,9 +60,9 @@ class WikiJSClient:
         """Lekéri az összes elérhető oldal listáját (id, path, title)."""
         query = """
         {
-        pages {
+          pages {
             list { id, path, title, updatedAt, createdAt }
-        }
+          }
         }
         """
         response = requests.post( self.wiki_url, 

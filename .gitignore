@@ -5,6 +5,7 @@ __pycache__
 mcp-config.json
 config.json
 scraeper-config.json
+service_account.key.json
 lancedb-wikijs/
 model-cache/
 
