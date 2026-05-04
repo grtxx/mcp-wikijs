@@ -19,7 +19,11 @@ if __name__ == "__main__":
     Drive = gdrive.GDriveClient(service_account_key=cfg.get("service_account_key"), 
                                 service_account_user=cfg.get("service_account_user") )
     
-    folder_id = "1YGUxhd7FMYp4pb8Esb_W-wI5P7K3KrQ5"
+    folder_id = cfg.get( "google_drive_root", "" )
+    if ( folder_id == "" ):
+        print( "Error: No Google Drive folder ID provided in config (google_drive_root)." )
+        sys.exit(1)
+    
 
     VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
                                      embedding_model_name=cfg.get("embedding_model_name"), 
