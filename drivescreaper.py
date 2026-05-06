@@ -13,8 +13,11 @@ if __name__ == "__main__":
 
     cfg.set('lastrun', time.strftime( '%Y-%m-%dT%H:%M:%SZ', time.gmtime() ))
 
-    with open("knownids.txt", "r") as f:
-        ids = f.read().splitlines()
+    try:
+        with open("knownids.txt", "r") as f:
+            ids = f.read().splitlines()
+    except FileNotFoundError:
+        ids = []
 
     Drive = gdrive.GDriveClient(service_account_key=cfg.get("service_account_key"), 
                                 service_account_user=cfg.get("service_account_user") )
