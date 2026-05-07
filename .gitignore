@@ -1,13 +1,14 @@
 venv
 venv/**
 __pycache__
-*.pyc
-*.lastrun
+**/*.pyc
+**/*.lastrun
 knownids.txt
 mcp-config.json
 config.json
 scraeper-config.json
 service_account.key.json
+**/*.log
+**/*.err
 lancedb-wikijs/
 model-cache/
-
