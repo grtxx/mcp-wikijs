@@ -2,7 +2,7 @@ venv
 venv/**
 __pycache__
 **/*.pyc
-**/*.lastrun
+*.lastrun
 knownids.txt
 mcp-config.json
 config.json
@@ -12,3 +12,5 @@ service_account.key.json
 **/*.err
 db/
 model-cache/
+wikiscreaper.lastrun
+drivescreaper.lastrun
