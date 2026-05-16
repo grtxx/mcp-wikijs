@@ -67,15 +67,15 @@ def create_app():
 
         for i, doc in enumerate(results):
             if i == 0:
-                print(f"Returning full page: {doc.url}")
+                print(f"Returning full page: {doc['url']}")
                 content = ""
-                if  doc.source == "wikijs" :
-                    content = wiki.convertToMarkdown(wiki.getPage(int(doc.page_id)))["content"] # type: ignore
-                elif doc.source == "googledrive":
-                    content = Drive.get_file_content_by_id( doc.page_id )
+                if  doc['source'] == "wikijs" :
+                    content = wiki.convertToMarkdown(wiki.getPage(int(doc['page_id'])))["content"] # type: ignore
+                elif doc['source'] == "googledrive":
+                    content = Drive.get_file_content_by_id( doc['page_id'] )
                 res_type = "FULL_ANSWER"
             else:
-                print(f"Returning snippet from: {doc.url}")
+                print(f"Returning snippet from: {doc['url']}")
                 content = doc['text'][9:1000] + "..." 
                 res_type = "SNIPPET"
 

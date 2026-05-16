@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "/opt/LUMENIS/mcp-wikijs/drivescreaper.py", line 31, in <module>
-    VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TypeError: WikiVector.__init__() got an unexpected keyword argument 'embedding_model_name'

@@ -163,7 +163,7 @@ class TEIVector:
     def search( self, query, queryType="hybrid", vector_weight=0.6, limit=5 ):
         queryVector = self.getEmbedding( self.searchPrefix + query )[0]
         if queryType == "hybrid":
-            res = self.table.search( queryVector ).text_search(query).vector_weight(vector_weight).limit(limit)
+            res = self.table.search(query_type="hybrid").vector(queryVector).text(query).limit( limit )
         else:
-            res = self.table.search( queryVector ).limit(limit)
-        return res.to_pandas()
+            res = self.table.search( queryVector ).limit( limit )
+        return res.to_list()
