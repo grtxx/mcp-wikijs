@@ -10,5 +10,5 @@ scraeper-config.json
 service_account.key.json
 **/*.log
 **/*.err
-lancedb-wikijs/
+db/
 model-cache/

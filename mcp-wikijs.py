@@ -1,14 +1,12 @@
-import lancedb  # type: ignore
 import uvicorn  # type: ignore
-from lancedb.embeddings import get_registry # type: ignore
-from lancedb.pydantic import LanceModel, Vector # type: ignore
 from mcp.server.fastmcp import FastMCP # type: ignore
 from configmanager import config as cfg
 from wikijsclient import WikiJSClient
 from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Scope, Receive, Send
 from middlewares.tokenauth import TokenAuthMiddleware
-import kbvector
+import lancedb
+import teivector
 import gdrive
 
 
@@ -20,12 +18,16 @@ def create_app():
 
     mcp = FastMCP(name="WikiHybridSearch")
 
-    VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
-                                        embedding_model_name=cfg.get("embedding_model_name"), 
-                                        embedding_model_device=cfg.get("embedding_model_device"), 
-                                        collection_name=cfg.get("collection_name"), 
-                                        chunk_size=int(cfg.get("chunk_size")), # type: ignore
-                                        chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
+    db = lancedb.connect( cfg.get( "lancedb_datapath" ) ) # type: ignore
+
+    VectorDB = teivector.TEIVector( 
+        db=db,
+        tei_url=cfg.get( "tei_server" ),
+        schemastring="source:str,page_id:str,title:str,url:str,description:str,updatedAt:str",
+        model_dims=int(cfg.get("model_dims")), # type: ignore
+        collection_name=cfg.get("collection_name"), 
+        chunk_size=int(cfg.get("chunk_size")), # type: ignore
+        chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
 
     Drive = gdrive.GDriveClient(service_account_key=cfg.get("service_account_key"), 
                                 service_account_user=cfg.get("service_account_user") )
@@ -74,14 +76,14 @@ def create_app():
                 res_type = "FULL_ANSWER"
             else:
                 print(f"Returning snippet from: {doc.url}")
-                content = doc.text[9:1000] + "..." 
+                content = doc['text'][9:1000] + "..." 
                 res_type = "SNIPPET"
 
             formatted_results.append(
-                f"### TITLE: {doc.title}\n"
-                f"- **ID:** {doc.page_id}\n"
-                f"- **URL:** {doc.url}\n"
-                f"- **UPDATED:** {doc.updatedAt}\n"
+                f"### TITLE: {doc['title']}\n"
+                f"- **ID:** {doc['page_id']}\n"
+                f"- **URL:** {doc['url']}\n"
+                f"- **UPDATED:** {doc['updatedAt']}\n"
                 f"- **RESPONSETYPE:** {res_type}\n\n"
                 f"**CONTENT:**\n{content}\n"
             )

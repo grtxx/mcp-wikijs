@@ -1,11 +1,9 @@
 import time
-
-import httplib2
 import sys
-import io
 from configmanager import config as cfg
-import kbvector
+import teivector
 import gdrive
+import lancedb
 
 if __name__ == "__main__":
 
@@ -27,13 +25,16 @@ if __name__ == "__main__":
         print( "Error: No Google Drive folder ID provided in config (google_drive_root)." )
         sys.exit(1)
     
+    db = lancedb.connect( cfg.get( "lancedb_datapath" ) ) # type: ignore
 
-    VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
-                                     embedding_model_name=cfg.get("embedding_model_name"), 
-                                     embedding_model_device=cfg.get("embedding_model_device"), 
-                                     collection_name=cfg.get("collection_name"), 
-                                     chunk_size=int(cfg.get("chunk_size")), # type: ignore
-                                     chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
+    VectorDB = teivector.TEIVector( 
+        db=db,
+        tei_url=cfg.get( "tei_server" ),
+        schemastring="source:str,page_id:str,title:str,url:str,description:str,updatedAt:str",
+        model_dims=int(cfg.get("model_dims")), # type: ignore
+        collection_name=cfg.get("collection_name"), 
+        chunk_size=int(cfg.get("chunk_size")), # type: ignore
+        chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
 
     for item in Drive.recursive_list_folder_contents(folder_id):
         meta = Drive.get_file_meta(item)
@@ -46,16 +47,16 @@ if __name__ == "__main__":
                 continue
 
             print( "Adding page: " + item.get('name') )
-            pg = kbvector.Page()
-            pg.source = "googledrive"
-            pg.page_id = meta.get('id') # type: ignore
-            pg.title = item.get('name') # type: ignore
-            pg.url = meta.get('webViewLink') # type: ignore
-            pg.text = content # type: ignore
-            pg.description = ""
-            pg.updatedAt = meta.get('modifiedTime') # type: ignore
-
-            VectorDB.addPage( pg )
+            pg = {
+                "source": "googledrive",
+                "page_id": meta.get('id'), # type: ignore
+                "title": item.get('name'), # type: ignore
+                "url": meta.get('webViewLink'), # type: ignore
+                "text": content, # type: ignore
+                "description": "",
+                "updatedAt": meta.get('modifiedTime') # type: ignore
+            }
+            VectorDB.longTextAdd( content, pg, "page_id" )
         else:
             print( f"Skip page: {item.get('name')}" )
 

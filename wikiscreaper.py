@@ -1,20 +1,21 @@
 import time
-from lancedb.embeddings import get_registry # type: ignore
-from lancedb.pydantic import LanceModel, Vector # type: ignore
-from langchain_text_splitters import MarkdownTextSplitter # type: ignore
 from configmanager import config as cfg
-from typing import Optional
 from wikijsclient import WikiJSClient
-import kbvector
+import teivector
+import lancedb
 
 
 def main():
-    VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
-                                        embedding_model_name=cfg.get("embedding_model_name"), 
-                                        embedding_model_device=cfg.get("embedding_model_device"), 
-                                        collection_name=cfg.get("collection_name"), 
-                                        chunk_size=int(cfg.get("chunk_size")), # type: ignore
-                                        chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
+    db = lancedb.connect( cfg.get( "lancedb_datapath", "" ) ) # type: ignore
+
+    VectorDB = teivector.TEIVector( 
+        db=db,
+        tei_url=cfg.get( "tei_server" ),
+        schemastring="source:str,page_id:str,title:str,url:str,description:str,updatedAt:str",
+        model_dims=int(cfg.get("model_dims")), # type: ignore
+        collection_name=cfg.get("collection_name"), 
+        chunk_size=int(cfg.get("chunk_size")), # type: ignore
+        chunk_overlap=int(cfg.get("chunk_overlap")) ) # type: ignore
     
     wiki = WikiJSClient( cfg.get( "wiki_url" ), cfg.get( "wiki_token" ) ) # type: ignore
 
@@ -41,24 +42,24 @@ def main():
        
         page = wiki.convertToMarkdown( wiki.getPage(int(page_id) ) )
         url = f"{cfg.get('wiki_url').rstrip('/graphql')}/{page['locale']}/{path}" # type: ignore
+        pg = {
+            "source": "wikijs",
+            "page_id": page_id,
+            "title": title,
+            "url": url,
+            "description": page['description'] if 'description' in page else "", # type: ignore
+            "updatedAt": p['updatedAt'] # type: ignore
+        }
 
-        pg = kbvector.Page()
-        pg.source = "wikijs"
-        pg.page_id = page_id
-        pg.title = title
-        pg.url = url
-        pg.text = page['content'] # type: ignore
-        pg.description = page['description'] if 'description' in page else "" # type: ignore
-        pg.updatedAt = p['updatedAt'] # type: ignore
-
-        VectorDB.addPage( pg )
+        VectorDB.longTextAdd( page['content'], idField="page_id", metadata=pg ) # type:ignore
 
     if cnt > 0:
         print( "Indexelés..." )
-        VectorDB.maintenance()
+        VectorDB.reIndex()
 
     print(f"\nKész! {cnt} oldal beindexelve, {skip} oldal kihagyva.")
     cfg.saveConfig()
 
 if __name__ == "__main__":
+    print( "Starting WikiJS Scraper..." )
     main()

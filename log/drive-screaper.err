@@ -1,17 +1,5 @@
 Traceback (most recent call last):
-  File "/opt/LUMENIS/mcp-wikijs/drivescreaper.py", line 22, in <module>
-    Drive = gdrive.GDriveClient(service_account_key=cfg.get("service_account_key"), 
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/LUMENIS/mcp-wikijs/gdrive.py", line 23, in __init__
-    self.service = self.get_drive_service()
-                   ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/LUMENIS/mcp-wikijs/gdrive.py", line 33, in get_drive_service
-    http_auth = self.get_google_credentials(scopes=["https://www.googleapis.com/auth/drive.readonly"]).authorize(httplib2.Http())
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/LUMENIS/mcp-wikijs/gdrive.py", line 27, in get_google_credentials
-    creds = ServiceAccountCredentials.from_json_keyfile_name(self.service_account_key, scopes)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/LUMENIS/mcp-wikijs/venv/lib/python3.12/site-packages/oauth2client/service_account.py", line 219, in from_json_keyfile_name
-    with open(filename, 'r') as file_obj:
-         ^^^^^^^^^^^^^^^^^^^
-FileNotFoundError: [Errno 2] No such file or directory: 'service_account.key.json'
+  File "/opt/LUMENIS/mcp-wikijs/drivescreaper.py", line 31, in <module>
+    VectorDB = kbvector.WikiVector( datapath=cfg.get( "lancedb_datapath" ), 
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: WikiVector.__init__() got an unexpected keyword argument 'embedding_model_name'
