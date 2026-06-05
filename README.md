@@ -14,7 +14,7 @@ The repository is structured to handle ingestion, vector management, and protoco
 * **`mcp-wikijs.py`**: The core MCP server entry point handling tool registration and LLM client communications.
 * **`wikiscreaper.py` & `wikijsclient.py**`: Automated scraper and client to pull down structured knowledge base articles from Wiki.js.
 * **`drivescreaper.py` & `gdrive.py**`: Google Drive scraper and integration modules to pull files/docs from designated folders.
-* **`teivector.py`**: Handles embedding generation and vector operations (likely targeting a Text Embeddings Inference microservice).
+* **`teivector.py`**: Handles embedding generation and vector operations (targeting a [Text Embeddings Inference](https://huggingface.co/docs/text-embeddings-inference/en/index) microservice).
 * **`configmanager.py` & `middlewares/tokenauth.py**`: Manages configuration parsing and secure token-based authentication.
 
 ---
